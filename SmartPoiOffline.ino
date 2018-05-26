@@ -1,47 +1,23 @@
 
-// Most of this code is the hard work of Tom Hastings www.bigtop.co.za //
-// other credits here! Many thanks to .....//
+// simple example code for POV poi on ESP8266, tested on D1 mini and ESP-01
+// hardware: for testing, APA102 strip 36px long (144px/m) using pins defined below. Make sure to put a cap between +5v and GND, mine says 1000uf and works fine. 
+// Most of this code is the hard work of Tom Hastings www.bigtop.co.za
+// Many thanks to Daniel Shiffman for open source code, as well as to Dylan and Brett Pillemer for inspiration..... 
+// Thanks as well to all the FastLED and Arduino guys and gals of course. 
+// example image is adapted from a Visual Poi program image, used for comparison with a commercial set of poi.
 
-volatile unsigned long millisecs = 0;
-unsigned long seconds = 0;
-volatile int variable = 0;
-//#include <avr/io.h>
-//#include <avr/interrupt.h>
 
-//#include "FastSPI_LED2.h"
 #include "FastLED.h"
-//FastLED.h working now!
-//#define BRIGHTNESS 20 //brightness done in code now
-//
-//////////////////////Colour Pallette Code:///////////////
-boolean upDown = true;
-#define BRIGHTNESS 200
-#define UPDATES_PER_SECOND 30000
-//CRGBPalette16 currentPalette;
-//TBlendType    currentBlending;
-//
-//extern CRGBPalette16 myRedWhiteBluePalette;
-//extern const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM;
-//////////////////end Colour Pallette Code//////////////////////////////
 
-//#include <avr/pgmspace.h>
-#define NUM_LEDS 37
+#define BRIGHTNESS 220 // up to 255 but that's too bright. In pitch darkness use < 100 to save your eyes (and to save battery).
+#define NUM_LEDS 37 //always one more than the actual number of LED's in strip - for some reason I get a dud pixel at the end otherwise...
 CRGB leds[NUM_LEDS];
+//D1 mini:
 #define DATA_PIN D2
 #define CLOCK_PIN D1
-
-
-//eeprom stuff:
-#include <EEPROM.h>
-byte eeprom_option;
-byte eeprom_address = 0;
-
-//text variables
-byte mask = 1;
-int z = 0;
-
-//flash
-//#include <Flash.h>
+//ESP-01:
+//#define DATA_PIN 2
+//#define CLOCK_PIN 0
 
 struct dataRGB {
   byte r;
@@ -54,13 +30,10 @@ struct pattern {
   byte numFrames;
   uint8_t *patData;
 };
-struct pattern2 {
-  byte numLeds;
-  byte numFrames;
-};
 
 
-
+//the following Array is compressed using R3G3B2 method: each comma separated value comprises RGB values for one pixel, compressed into one signed byte.
+//uncompressed uses 3x as much space, I have not seen any real difference in colour quality using this scheme.
 uint8_t message1Data[] =
 { 63,	63,	31,	31,	22,	9,	0,	0,	-112,	-3,	-4,	-4,	-40,	68,	64,	-92,	-64,	-32,	-64,	-60,	-92,	96,	100,	-8,	-3,	-4,	-3,	-111,	0,	0,	5,	22,	31,	31,	31,	63,
   18,	63,	63,	63,	63,	18,	4,	0,	0,	-112,	-3,	-3,	-7,	-43,	100,	-128,	-60,	-64,	-96,	-92,	-128,	100,	-11,	-3,	-3,	-3,	112,	0,	0,	4,	18,	95,	63,	63,	59,	22,
@@ -96,42 +69,16 @@ uint8_t message1Data[] =
   22,	63,	63,	31,	63,	18,	4,	0,	0,	-112,	-3,	-4,	-4,	-44,	100,	-128,	-64,	-64,	-64,	-96,	-128,	96,	-44,	-3,	-4,	-3,	-112,	0,	0,	5,	18,	63,	31,	31,	63,	22,
   63,	31,	31,	63,	18,	4,	0,	0,	-112,	-3,	-4,	-4,	-44,	68,	96,	-92,	-64,	-32,	-32,	-64,	-96,	96,	68,	-40,	-4,	-4,	-3,	-111,	0,	0,	4,	22,	31,	31,	31,	63
 };
-struct pattern message1 = {36, 33, message1Data};
+struct pattern message1 = {36, 33, message1Data}; //need this for multiple images later
 
+byte X;
 
 void setup() {
-  // Serial.begin(9600);
-
-
-  FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, BGR>(leds, NUM_LEDS); //DATA_RATE_MHZ(8)
+  //Serial.begin(115200);
+  //Serial.println("Startup");
+  FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, BGR>(leds, NUM_LEDS); 
   FastLED.setBrightness(  BRIGHTNESS );
-
-  ////////colour pallett code here:
-  //  currentPalette = RainbowStripeColors_p;
-  //  currentBlending = BLEND;
-
-  //eeprom read/set code here.
-  // DISABLING EEPROM FOR NOW JUST USING 0 - TIMER
-  //eeprom_option = EEPROM.read(eeprom_address);
-  //  eeprom_option = eeprom_option + 1;
-  //  if (eeprom_option == 9)
-  eeprom_option = 0;
-  //  EEPROM.write(eeprom_address, eeprom_option);
-
-  delay(100);
-  FastLED.showColor( CRGB::Red );
-  delay(1000);
-  FastLED.showColor( CRGB::Black );
-  delay(100);
-  FastLED.showColor( CRGB::Blue );
-  delay(1000);
-  FastLED.showColor( CRGB::Black );
-  delay(100);
-  FastLED.showColor( CRGB::Green );
-  delay(1000);
-  FastLED.showColor( CRGB::Black );
-  delay(100);
-
+  startupPattern();
 }
 
 
@@ -139,40 +86,15 @@ void setup() {
 
 void loop()
 {
-  /*
-  uint8_t  *rgbx;
-  struct pattern *pat;
-
-
-  pat = &message1;
-  rgbx = pat->patData;
-*/
-  /*
-    for (int j = 0; j < pat->numFrames; j++ ) {
-    for (int i = 0; i < pat->numLeds; i++) {
-
-      byte R1 = (pgm_read_byte_near(rgbx++) & 0xE0);
-       leds[i].r = R1 / 5; // /5 to bring brightness down
-       byte G1 =  ((pgm_read_byte_near(rgbx) << 3) & 0xE0);
-       leds[i].g = G1 / 5;
-       byte M1 = (pgm_read_byte_near(rgbx) << 6);
-       leds[i].b = M1 / 5;
-
-
-    }
-     FastLED.show();
-    //delay(1);
-    }
-  */
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   int counter = 0;
-  for (int j = 0; j < 33; j++ ) {
-    for (int i = 0; i < 36; i++) {
-      byte X;
+  for (int j = 0; j < 33; j++ ) { //number of rows
+    for (int i = 0; i < 36; i++) { //number of LED's
+
       ///////////////////////////////convert byte to signed byte:////
       X = message1Data[counter++];
-      /////////////////////////////end convert byte to signed byte////
+      ///////////////////////////////end convert byte to signed byte////
 
+      // array compressed using R3G3B2 compression, uncompress here:
       byte R1 = (X & 0xE0);
       leds[i].r = R1; //
       byte G1 =  ((X << 3) & 0xE0);
@@ -184,15 +106,57 @@ void loop()
     }
     FastLED.show();
   }
-  //FastLED.delay(2); //not just for emulator!
-
-
-
-  
-
+  //FastLED.delay(2);
 }
 
-
+void startupPattern() {
+  delay(100);
+  FastLED.showColor(CRGB::Red);
+  delay(1000);
+  FastLED.showColor(CRGB::Black);
+  delay(100);
+  FastLED.showColor(CRGB::Green);
+  delay(1000);
+  FastLED.showColor(CRGB::Black);
+  delay(100);
+  FastLED.showColor(CRGB::Blue);
+  delay(1000);
+  FastLED.showColor(CRGB::Black);
+  delay(100);
+  for (int i = 0; i < NUM_LEDS; i++) {
+    // Set the i'th led to whatever
+    leds[i] = CRGB::Cyan;
+    // Show the leds
+    FastLED.show();
+    // now that we've shown the leds, reset the i'th led to black
+    leds[i] = CRGB::Black;
+    // Wait a little bit before we loop around and do it again
+    delay(10);
+  }
+  for (int i = 0; i < NUM_LEDS; i++) {
+    // Set the i'th led to whatever
+    leds[i] = CRGB::Yellow;
+    // Show the leds
+    FastLED.show();
+    // now that we've shown the leds, reset the i'th led to black
+    leds[i] = CRGB::Black;
+    // Wait a little bit before we loop around and do it again
+    delay(10);
+  }
+  for (int i = 0; i < NUM_LEDS; i++) {
+    // Set the i'th led to whatever
+    leds[i] = CRGB::Magenta;
+    // Show the leds
+    FastLED.show();
+    // now that we've shown the leds, reset the i'th led to black
+    leds[i] = CRGB::Magenta;
+    // Wait a little bit before we loop around and do it again
+    delay(10);
+  }
+  delay(200);
+  FastLED.showColor( CRGB::Black );
+  delay(100);
+}
 
 
 
