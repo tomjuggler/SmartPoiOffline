@@ -27,8 +27,8 @@ boolean upDown = true;
 //#include <avr/pgmspace.h>
 #define NUM_LEDS 37
 CRGB leds[NUM_LEDS];
-#define DATA_PIN 2
-#define CLOCK_PIN 0
+#define DATA_PIN D2
+#define CLOCK_PIN D1
 
 
 //eeprom stuff:
