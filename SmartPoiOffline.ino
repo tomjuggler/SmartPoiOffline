@@ -73,6 +73,8 @@ struct pattern message1 = {36, 33, message1Data}; //need this for multiple image
 
 byte X;
 
+long counter = 0;
+
 void setup() {
   //Serial.begin(115200);
   //Serial.println("Startup");
@@ -86,7 +88,7 @@ void setup() {
 
 void loop()
 {
-  int counter = 0;
+  counter = 0;
   for (int j = 0; j < 33; j++ ) { //number of rows
     for (int i = 0; i < 36; i++) { //number of LED's
 
@@ -101,7 +103,7 @@ void loop()
       leds[i].g = G1;
       byte M1 = (X << 6);
       leds[i].b = M1;
-      //FastLED.delay(1);
+      //FastLED.delay(1); //may be necessary for 160mhz ESP8266
       //Serial.print(R1); Serial.print(", "); Serial.print(G1); Serial.print(", "); Serial.println(M1);
     }
     FastLED.show();
@@ -157,6 +159,3 @@ void startupPattern() {
   FastLED.showColor( CRGB::Black );
   delay(100);
 }
-
-
-
