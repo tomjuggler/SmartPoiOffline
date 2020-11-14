@@ -28,13 +28,13 @@ struct dataRGB {
 struct pattern {
   byte numLeds;
   byte numFrames;
-  uint8_t *patData;
+  int8_t *patData;
 };
 
 
 //the following Array is compressed using R3G3B2 method: each comma separated value comprises RGB values for one pixel, compressed into one signed byte.
 //uncompressed uses 3x as much space, I have not seen any real difference in colour quality using this scheme.
-uint8_t message1Data[] =
+int8_t message1Data[] =
 { 63,	63,	31,	31,	22,	9,	0,	0,	-112,	-3,	-4,	-4,	-40,	68,	64,	-92,	-64,	-32,	-64,	-60,	-92,	96,	100,	-8,	-3,	-4,	-3,	-111,	0,	0,	5,	22,	31,	31,	31,	63,
   18,	63,	63,	63,	63,	18,	4,	0,	0,	-112,	-3,	-3,	-7,	-43,	100,	-128,	-60,	-64,	-96,	-92,	-128,	100,	-11,	-3,	-3,	-3,	112,	0,	0,	4,	18,	95,	63,	63,	59,	22,
   4,	18,	59,	63,	63,	63,	18,	4,	0,	32,	-112,	-3,	-3,	-3,	-44,	96,	-128,	-60,	-96,	96,	96,	-44,	-3,	-3,	-3,	112,	4,	0,	4,	17,	63,	63,	91,	91,	18,	5,
